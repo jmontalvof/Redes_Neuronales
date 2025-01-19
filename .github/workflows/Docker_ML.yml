@@ -1,0 +1,45 @@
+name: Docker ML Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-install:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build Docker image
+      run: |
+        # Create a Dockerfile dynamically
+        echo "FROM ubuntu:latest" > Dockerfile
+        echo "RUN apt-get update && apt-get install -y python3 python3-pip" >> Dockerfile
+        echo "RUN pip3 install scikit-learn" >> Dockerfile
+
+        # Build the Docker image
+        docker build -t my-ml-image .
+
+    - name: Run container and test package
+      run: |
+        docker run my-ml-image python3 -c "import sklearn; print(f'Scikit-learn version: {sklearn.__version__}')"
+
+    - name: Push Docker image to DockerHub
+      run: |
+        docker tag my-ml-image ${{ secrets.DOCKER_USERNAME }}/my-ml-image:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/my-ml-image:latest
